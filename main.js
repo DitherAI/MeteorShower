@@ -134,8 +134,8 @@ async function main() {
     console.log("🏁 Script finished.");
   }
   
-  main().catch(err => {
+  /*main().catch(err => {
     console.error("💥 Unhandled error in main:", err);
     process.exit(1);
-  });
+  });*/
 export { main, monitorPositionLoop };
