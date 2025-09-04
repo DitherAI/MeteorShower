@@ -1,0 +1,45 @@
+{
+  "mode": "portfolio",
+  "drift_bps": 2500,
+  "min_rebalance_usd": 50,
+  "cooldown_seconds": 0,
+  "price_stale_secs": 60,
+  "sleeves": [
+    {
+      "id": "SOL-USELESS-spot",
+      "pool_address": "8ztFxjFPfVUtEf4SLSapcFj8GW2dxyUA9no2bLPq7H7V",
+      "target_weight": 0.30,
+      "total_bins_span": 60,
+      "lower_coef": 0.50,
+      "edge_buffer_bins": -1,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": true,
+      "do_swap_on_center": true,
+      "min_liquidity_usd": 100
+    },
+    {
+      "id": "SOL-FARTCOIN-spot",
+      "pool_address": "6wJ7W3oHj7ex6MVFp2o26NSof3aey7U8Brs8E371WCXA",
+      "target_weight": 0.20,
+      "total_bins_span": 60,
+      "lower_coef": 0.50,
+      "edge_buffer_bins": -1,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": true,
+      "do_swap_on_center": true
+    },
+    {
+      "id": "SOL-JUP-spot",
+      "pool_address": "8nGw9VHzwTBLcAfxWYnFLWbind4tJPSAXiq8nB89mx9d",
+      "target_weight": 0.50,
+      "total_bins_span": 60,
+      "lower_coef": 0.50,
+      "edge_buffer_bins": -1,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": true,
+      "do_swap_on_center": true,
+      "min_liquidity_usd": 5
+    }
+    
+  ]
+}

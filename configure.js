@@ -53,7 +53,9 @@ function ensureWallet(walletPath) {
     console.log('[info] wallet file not found — generating a new key‑pair …');
     fs.mkdirSync(path.dirname(absPath), { recursive: true });
     kp = Keypair.generate();
-    fs.writeFileSync(absPath, JSON.stringify(Array.from(kp.secretKey)));
+    fs.writeFileSync(absPath, JSON.stringify(Array.from(kp.secretKey)), {
+      mode: 0o600, flag: 'wx',
+    });
     console.log(`[success] new key‑pair saved to ${absPath}`);
     return { path: absPath, pubkey: kp.publicKey.toBase58() };
   } catch (err) {
@@ -64,13 +66,12 @@ function ensureWallet(walletPath) {
     try {
       kp = Keypair.generate();
       fs.writeFileSync(fallback, JSON.stringify(Array.from(kp.secretKey)), {
-        flag: 'wx',
+        mode: 0o600, flag: 'wx',
       });
       console.log(`[success] new key‑pair saved to ${fallback}`);
       return { path: fallback, pubkey: kp.publicKey.toBase58() };
     } catch (e) {
       console.error(`[error] fallback wallet creation failed: ${e.message}`);
-      // Return whatever info we have; pubkey may be undefined
       return { path: fallback, pubkey: kp?.publicKey?.toBase58() ?? '' };
     }
   }
