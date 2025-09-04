@@ -1,248 +1,391 @@
-### Introduction
+# Meteor Shower — Meteora DLMM Liquidity Bot (Portfolio branch)
 
-This document provides instructions for the DLMM Liquidity Bot known as Meteor Shower, an open-source tool designed to automate the process of providing liquidity on the Meteora platform. Specifically, this bot helps users automatically re-center their positions in Meteora's Dynamic Liquidity Market Maker (DLMM) pools. By monitoring the active price bin, the bot can close and reopen a liquidity position to keep it centered, aiming to optimize fee capture and manage position effectiveness.
+Automates DLMM liquidity management on Solana. Adds **multi‑pool portfolio management** with target weights, sleeve‑level recenters, and cross‑sleeve rebalancing.
 
-This tool is intended for users who have a solid understanding of decentralized finance (DeFi), liquidity pools, and the inherent risks involved. Please read the following disclaimers carefully before proceeding.
-
-### **Disclaimers**
-
-**No Financial Advice**
-The information and tools provided in this guide are for informational purposes only and do not constitute financial, investment, or trading advice. You should not construe any such information or other material as legal, tax, investment, financial, or other advice. The use of this bot is at your sole discretion and risk.
-
-**Risk of Financial Loss**
-Providing liquidity in a DLMM, like any other automated market maker, carries significant financial risks. These risks include, but are not limited to, impermanent loss, price volatility, and potential loss of your entire deposited capital. The automated nature of this bot does not eliminate these risks and may, in some market conditions, amplify them.
-
-**Open-Source Software**
-This is an open-source software provided on an "as is" basis, without warranties or representations of any kind, express or implied. The developers and contributors of this software are not liable for any bugs, errors, or vulnerabilities in the code. You are responsible for reviewing and understanding the code before you use it.
-
-**Smart Contract Risk**
-The bot interacts with the smart contracts of the Meteora platform and may use other third-party protocols like Jupiter for token swaps. Smart contracts can have vulnerabilities or behave in unexpected ways, which could lead to a partial or total loss of your funds.
-
-**No Guarantee of Performance**
-There is no guarantee that this bot will perform as expected or that it will be profitable. Market conditions can change rapidly, and the bot's re-centering strategy may not be effective in all scenarios. Past performance is not indicative of future results.
-
-By choosing to use the DLMM Liquidity Bot, you acknowledge that you have read, understood, and accepted these risks. You agree that the developers and contributors of this software will not be held liable for any losses or damages that may arise from its use.
-
-# DLMM Liquidity Bot Setup Guide
-
-This guide explains how to set up and run the DLMM liquidity bot for Meteora on Solana.
+> **Disclaimers**
+>
+> **No financial advice.** Use at your own risk.
+> **Risk of loss.** Impermanent loss, volatility, contract risk, and total loss are possible.
+> **Open‑source, no warranty.** Review code before use.
+> **No performance guarantees.** Past results are irrelevant.
 
 ---
 
-## Beginner's Guide to Downloading and Accessing GitHub Code
+## What’s new in this branch
 
-Follow these simple steps to download code from GitHub and access it via the Command Line Interface (CLI).
+* **Portfolio mode**: manage many DLMM pools as “sleeves” with target weights.
+* **Recenter + Rebalance loop**:
 
-### 1. Downloading the Code from GitHub
-
-*   Visit the GitHub repository at this link: [https://github.com/DitherAI/MeteorShower/tree/main](https://github.com/DitherAI/MeteorShower/tree/main)
-*   Click on the green `<> Code` button on the right side of the page.
-*   Select `Download ZIP`. Your download will start automatically.
-
-### 2. Extracting the ZIP File
-
-*   Navigate to your computer's `Downloads` folder (or wherever the file was downloaded).
-*   Locate the file named `MeteorShower-main.zip`.
-*   Right-click the ZIP file and select `Extract All`.
-*   Choose a location to extract the files (the default is typically fine).
-*   Click `Extract`.
-
-### 3. Navigating to the Directory Using CLI
-
-*   **Open your Command Line Interface (CLI):**
-    *   **Windows:** Search for `Command Prompt` in your Start Menu.
-    *   **MacOS:** Search for and open `Terminal` using Spotlight Search (`Cmd + Space`).
-    *   **Linux:** Open the `Terminal` application from your applications menu.
-*   **Navigate to the directory:**
-    *   Replace `<your-username>` with your actual username.
-    *   **On Windows:**
-        ```bash
-        cd C:\Users\<your-username>\Downloads\MeteorShower-main
-        ```
-    *   **On MacOS or Linux:**
-        ```bash
-        cd ~/Downloads/MeteorShower-main
-        ```
-*   **Check if you're in the right place:**
-    ```bash
-    ls
-    ```
-    This command should list files like `README.md` and other files from the repository.
-
-You're now ready to use or explore the code!
+  * Per‑sleeve OOR detection with optional **edge buffer bins**.
+  * Cross‑sleeve USD reallocation; then optional **wallet supplement** if underweight remains.
+* **Consistent swap controls**: slippage in bps, price‑impact guard, priority fees.
+* **Fee buffer discipline**: reserves SOL per open position; auto **top‑up** via Jupiter and **unwraps WSOL**.
+* **Defensive execution**: retry helpers, SDK fallbacks, error‑code handling (e.g., 6068/6054).
 
 ---
 
-## Beginner's Guide to Running MeteorShower From Scratch
+## Getting the code
 
-### 1. Install Node.js
+### Git (recommended)
 
-Ensure Node.js is installed on your system. If you are unfamiliar, Node is how you will run the javascript code.
-*   **Download:** [Node.js Official Website](https://nodejs.org/)
+```bash
+git clone https://github.com/TheMattness/MeteorShower.git
+cd MeteorShower
+git checkout portfolio
+```
 
-*   **Check Installation:** Run the following commands in your terminal:
-    ```bash
-    node -v
-    npm -v
-    ```
-    If both commands return version numbers, Node.js is installed successfully.
+### ZIP
 
-### 2. Install Dependencies
+On GitHub, switch to the `portfolio` branch, then **Code → Download ZIP**. Unzip and `cd` into the folder.
 
-We have the required libraries defined in our `packages.json`. Run the following command in your terminal to install these required packages:
+---
+
+## Requirements
+
+* **Node.js 20+** (JSON import attributes and fetch behavior assumed)
+* A Solana wallet with funds and tokens for the target pools
+
+```bash
+node -v   # must be 20.x or newer
+npm -v
+```
+
+---
+
+## Install
+
 ```bash
 npm install
 ```
 
-### 3. Create Configuration File
+> The project uses `package.json` (not “packages.json”).
 
-Create a file named `.env` in your project directory. We will create this file by running the following script in our command line:
+---
+
+## Configure
+
+### Option A — Interactive generator
+
+1. Create a baseline template file:
+
 ```bash
-node configure.js run
-```
-Below we go through each item during setup. Input your known values or use the defaults. You can also edit the `.env` file directly after we create it during configuration.
-
----
-
-## Detailed `.env` Variable Reference
-
-This reference explains every value in `.env.example`, what it controls, and how to pick a setting. Comments that start with `#` are ignored by the bot—they are just notes for you.
-
-### 1. Network / RPC
-
-*   `RPC_URL`
-    *   Full HTTPS endpoint for a Solana RPC node. Use the URL (including any API key query-string) given by Helius, Triton, QuickNode, or your own validator. Without a reliable RPC, the bot cannot send transactions.
-    *   If you do not have an RPC provider then we recommend Helius - [https://www.helius.dev/](https://www.helius.dev/) which has a free tier which is more than capable of supporting this bot.
-
-### 2. Wallet / Keys
-
-*   `WALLET_PATH`
-    *   Absolute path (or `~/…`) to the JSON key-pair created by `solana-keygen new`. If you did not have a wallet created before using `configure.js` then leave this blank. If you leave this blank, `configure.js` will generate a new wallet and fill the path for you. Back up this file—whoever has it controls your funds.
-*   `# WALLET_ADDRESS=…`
-    *   This comment is added automatically by `configure.js` after it knows your public key. It is informational only. This is the wallet address which you will need to transfer your funds before you run the bot.
-
-### 3. Pool Configuration
-
-*   `POOL_ADDRESS`
-    *   Address of the Meteora DLMM liquidity-bin pair you intend to provide liquidity to—not the LP token mint. Copy it from the Meteora UI or a block explorer. You must use a SOL pool pair. Underlined is the pool address from a Meteora URL:
-    *   `https://app.meteora.ag/dlmm/<u>6wJ7W3oHj7ex6MVFp2o26NSof3aey7U8Brs8E371WCXA</u>?referrer=portfolio`
-*   `TOTAL_BINS_SPAN`
-    *   Total number of bins that your position will cover, counting both sides of the active price. A wider span reduces recenter frequency but spreads your capital thin; a narrow span concentrates fees but requires more rebalancing. Meteora uses 69 as a default.
-*   `LOWER_COEF`
-    *   Fraction of those bins allocated below the active price. For symmetrical exposure use `0.5`. A lower number biases more bins above price; a higher number places more below.
-*   `LIQUIDITY_STRATEGY_TYPE`
-    *   Preset that shapes how liquidity is distributed inside your span. `Spot`, `Curve`, or `BidAsk` distribute liquidity differently. Choose one recognised by the version of Meteora you are running.
-    *   Here is a quick overview: [https://docs.meteora.ag/overview/products/dlmm/1-what-is-dlmm#liquidity-shapes](https://docs.meteora.ag/overview/products/dlmm/1-what-is-dlmm#liquidity-shapes)
-
-### 4. Fee & Priority Tuning
-
-*   `PRIORITY_FEE_MICRO_LAMPORTS`
-    *   Extra compute-unit fee expressed in micro-lamports. Higher numbers buy faster confirmations. Around `50000` corresponds to the "very high" preset on main-net.
-*   `SOL_FEE_BUFFER_LAMPORTS`
-    *   Amount of SOL (in lamports) the bot will reserve for future rent and fees. Default is `70000000` (0.07 SOL). The bot refuses to drop below this balance. This is to cover the refundable pool rent and to cover transaction costs after capital is allocated.
-*   `PRICE_IMPACT`
-    *   Maximum allowed price impact when Jupiter performs swaps to balance your tokens. `0.1` means 0.10 %.
-*   `SLIPPAGE`
-    *   Slippage tolerance, expressed in basis points. `10` equals 0.1 %.
-
-### 5. Monitoring & Rebalancing
-
-*   `MONITOR_INTERVAL_SECONDS`
-    *   How often, in seconds, the bot checks price drift and position health.
-*   `CENTER_DISTANCE_THRESHOLD`
-    *   When price moves this far from the centre of your span, the bot closes and reopens the position. The value is expressed as a fraction of half-span. `0.45` means 45 % of half-width. In a 20 bin pool, the bot will recenter when the pool is on the final bin before ‘out of range’.
-
-### 6. Manual vs Automatic Span Optimisation
-
-*   `MANUAL`
-    *   `true` instructs the bot to use your fixed `TOTAL_BINS_SPAN`. `false` makes it query an external API for an adaptive span.
-*   `DITHER_ALPHA_API`
-    *   URL of the service that returns historical volatility metrics. Used only when `MANUAL=false`.
-*   `LOOKBACK`
-    *   Number of days of historical data the bot requests when calculating an adaptive span.
-
-### 7. Logging & Debugging
-
-*   `LOG_LEVEL`
-    *   Controls how much information the bot prints. Accepted values: `fatal`, `error`, `warn`, `info`, `debug`, `trace`. Use `debug` if you are troubleshooting.
-
----
-
-## Quick-Start `.env` Template
-
-Copy this block into a new file named `.env`, then replace the highlighted bits:
-
-```env
-RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY_HERE
-WALLET_PATH=~/id.json
-POOL_ADDRESS=PASTE_YOUR_POOL_ADDRESS
-TOTAL_BINS_SPAN=40
+cat > .env.example <<'EOF'
+RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+WALLET_PATH=./id.json
+LOG_LEVEL=info
+MODE=single
+POOL_ADDRESS=
+TOTAL_BINS_SPAN=20
 LOWER_COEF=0.5
 LIQUIDITY_STRATEGY_TYPE=Spot
 PRIORITY_FEE_MICRO_LAMPORTS=50000
 SOL_FEE_BUFFER_LAMPORTS=70000000
-PRICE_IMPACT=0.1
+PRICE_IMPACT=0.5
 SLIPPAGE=10
-MONITOR_INTERVAL_SECONDS=30
-CENTER_DISTANCE_THRESHOLD=0.45
+MONITOR_INTERVAL_SECONDS=60
+EDGE_BUFFER_BINS=0
 MANUAL=true
-DITHER_ALPHA_API=http://0.0.0.0:8000/metrics
+DITHER_ALPHA_API=
 LOOKBACK=30
-LOG_LEVEL=info
+DO_SWAP_ON_OPEN=false
+DO_SWAP_ON_CENTER=false
+SOL_TOPUP_USD=10
+PRICE_TTL_SECONDS=15
+FEE_SHARE_WALLET=
+FEE_SHARE_PCT=0
+PORTFOLIO_CONFIG=./portfolio.config.json
+EOF
 ```
 
-Once the file is saved, you can start the bot with `node cli.js run`. Good luck!
+2. Run the generator:
+
+```bash
+node configure.js
+```
+
+* Generates a wallet at `WALLET_PATH` if missing and writes `.env`.
+* Adds `# WALLET_ADDRESS=…` comment for convenience.
+
+### Option B — Manual
+
+Create `.env` from the template above and edit values.
 
 ---
 
-## 4. Running the Bot
+## Modes
 
-*   **Run the bot with default settings:**
-    ```bash
-    node cli.js run
-    ```
+### Single‑sleeve mode (default)
 
-*   **Run the bot with a custom monitoring interval (e.g., every 30 seconds):**
-    ```bash
-    node cli.js run --interval 30
-    ```
+* Uses `POOL_ADDRESS`.
+* Opens one position, monitors, recenters when leaving range.
 
-## 5. Understanding What the Bot Does
+### Portfolio mode
 
-*   **Opens Liquidity Positions:** Creates a DLMM liquidity position centered around the current active bin.
-*   **Balances Tokens:** Automatically uses Jupiter to balance your token holdings to optimal ratios.
-*   **Continuous Monitoring:** Tracks your position value and performance in real-time.
-*   **Automatic Rebalancing:** Closes and reopens positions when the active price moves too far from your liquidity center.
+* Set `MODE=portfolio`.
+* Provide `PORTFOLIO_CONFIG` pointing to a JSON file (recommend relative path like `./portfolio.config.json`).
 
-## 7. Prerequisites
+#### `portfolio.config.json` schema
 
-*   A Solana wallet containing the tokens for your target pool.
-*   Some SOL for transaction fees (the bot reserves 0.07 SOL as a fee buffer).
-*   Your wallet file must be a JSON array containing private key bytes.
-
-## 8. Safety and Reliability Features
-
-*   Maintains a buffer of SOL to ensure transactions complete.
-*   Implements retry logic for failed transactions.
-*   Validates token balances before performing actions.
-*   Uses slippage protection when swapping tokens.
-*   Press `Ctrl+C` at any time to stop the bot.
-
-## 9. Manual Mode Configuration
-
-To enable manual control, update your `.env` file:
-```env
-MANUAL=true
-TOTAL_BINS_SPAN=15         # Sets a fixed bin span width
-LOWER_COEF=0.5             # 50% bins below, 50% above the active price
-CENTER_DISTANCE_THRESHOLD=0.45  # Rebalances at 45% drift
+```jsonc
+{
+  "drift_bps": 150,                 // rebalance trigger threshold (1.50% relative drift)
+  "min_rebalance_usd": 50,          // ignore tiny actions
+  "cooldown_seconds": 300,          // portfolio rebalance cooldown
+  "price_stale_secs": 60,           // price cache TTL used in portfolio loop
+  "sleeves": [
+    {
+      "id": "SOL-USDC",
+      "pool_address": "DLMM_POOL_PUBKEY_1",
+      "target_weight": 0.6,         // weights are normalized; raw sum need not be 1.0
+      "edge_buffer_bins": 0,         // extra bins before marking OOR
+      "liquidity_strategy_type": "Spot", // or "Stable" (SDK enum also accepted)
+      "do_swap_on_open": false,
+      "do_swap_on_center": false,
+      "min_liquidity_usd": 25
+      // NOTE: total_bins_span/lower_coef present for future use; currently global via .env.
+    },
+    {
+      "id": "mSOL-SOL",
+      "pool_address": "DLMM_POOL_PUBKEY_2",
+      "target_weight": 0.4,
+      "edge_buffer_bins": 0,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": true,
+      "do_swap_on_center": true,
+      "min_liquidity_usd": 25
+    }
+  ]
+}
 ```
 
-### When to use Manual Mode:
-*   Manage your position size and span directly.
-*   API optimization isn't available to you.
-*   Implementing your own liquidity management strategies.
+> **Important**
+>
+> * The open‑position path currently uses **global** `TOTAL_BINS_SPAN` and `LOWER_COEF` from `.env`. Per‑sleeve `total_bins_span` and `lower_coef` are **not yet wired** in this branch.
+> * Use a relative file path for `PORTFOLIO_CONFIG` (e.g., `./portfolio.config.json`) to avoid platform import quirks.
 
-### When to use Automatic Mode:
-*   Optimal range based on dynamic volatility.
-*   Adaptive positioning based on current market conditions.
+---
+
+## Run
+
+### Single
+
+```bash
+node cli.js run
+# or
+node cli.js run --interval 30
+```
+
+### Portfolio
+
+```bash
+# .env must include MODE=portfolio and a valid PORTFOLIO_CONFIG
+node cli.js run
+# or override tick interval
+node cli.js run --interval 30
+```
+
+CLI reads:
+
+* `RPC_URL`, `WALLET_PATH`, `LOG_LEVEL` from `.env`.
+* `--interval` overrides `MONITOR_INTERVAL_SECONDS`.
+
+---
+
+## What the bot does
+
+* **Open / Add / Remove / Close** DLMM positions using Meteora SDK.
+* **Recenters** when active bin crosses the position range (with optional `EDGE_BUFFER_BINS`).
+* **Portfolio rebalance**:
+
+  1. Move USD from overweight sleeves to underweight sleeves.
+  2. If underweight remains and wallet has surplus (after SOL buffer reservation), allocate from wallet.
+* **Swaps via Jupiter** for balancing and SOL top‑ups, with:
+
+  * **Slippage** in bps (`SLIPPAGE`).
+  * **Local price‑impact guard** (`PRICE_IMPACT`, percent).
+  * **Priority fee** in micro‑lamports (`PRIORITY_FEE_MICRO_LAMPORTS`).
+* **Fee buffer**: reserves `SOL_FEE_BUFFER_LAMPORTS` per open position; respects buffer when planning swaps and adds.
+* **WSOL hygiene**: unwraps after swaps/removes/closes.
+
+---
+
+## `.env` reference
+
+**Network**
+
+* `RPC_URL` — Solana RPC endpoint (include API key if required).
+
+**Wallet**
+
+* `WALLET_PATH` — JSON keypair path. Generator writes here if missing.
+* `# WALLET_ADDRESS=…` — comment added by generator for reference.
+
+**Mode**
+
+* `MODE` — `single` or `portfolio`.
+* `PORTFOLIO_CONFIG` — path to JSON config in portfolio mode.
+
+**Single‑mode range**
+
+* `POOL_ADDRESS` — DLMM pair address.
+* `TOTAL_BINS_SPAN` — total bins across both sides. Default `20`.
+* `LOWER_COEF` — fraction below center, `[0..1]`.
+* `MANUAL` — `true` uses `TOTAL_BINS_SPAN`; `false` queries `DITHER_ALPHA_API` with `LOOKBACK` days to resolve span.
+* `DITHER_ALPHA_API` — external signal URL (optional).
+* `LOOKBACK` — days for the span signal (string acceptable).
+
+**Execution / Fees / Swaps**
+
+* `PRIORITY_FEE_MICRO_LAMPORTS` — compute unit price. Example `50000`.
+* `SOL_FEE_BUFFER_LAMPORTS` — SOL buffer. Default `70000000` (0.07 SOL).
+* `SOL_TOPUP_USD` — when topping up SOL, target USD for swap. Default `10`.
+* `SLIPPAGE` — bps; `10` = 0.10%.
+* `PRICE_IMPACT` — max allowed impact in percent; `0.5` = 0.5%.
+* `DO_SWAP_ON_OPEN` — pre‑swap to balance X/Y before opening.
+* `DO_SWAP_ON_CENTER` — swap as part of recenter.
+
+**Monitoring**
+
+* `MONITOR_INTERVAL_SECONDS` — loop tick. CLI `--interval` overrides.
+* `EDGE_BUFFER_BINS` — extra bins before declaring OOR.
+
+**Logging**
+
+* `LOG_LEVEL` — `fatal|error|warn|info|debug|trace`.
+
+**Pricing cache**
+
+* `PRICE_TTL_SECONDS` — single‑mode PriceCache TTL.
+  Portfolio loop uses `price_stale_secs` from `portfolio.config.json`.
+
+**Optional fee sharing**
+
+* `FEE_SHARE_WALLET` — destination public key.
+* `FEE_SHARE_PCT` — fraction `[0..1]` of **claimed fees** to send.
+
+---
+
+## Portfolio planner details
+
+* **Drift trigger**: worst relative drift > `drift_bps/10_000`.
+* **Sleeve→Sleeve**: withdraw from biggest overweights first; add to biggest underweights first.
+* **Wallet supplement**: after reserving `SOL_FEE_BUFFER_LAMPORTS × open_positions`, use surplus wallet USD to fill remaining underweights if ≥ `min_rebalance_usd`.
+* **Cooldown**: enforce `cooldown_seconds` between portfolio rebalances.
+* **Error handling**:
+
+  * On remove failures like `6068`/`InvalidMinimumLiquidity`, fall back to `closePosition`.
+  * On add failures like `6054`/`InvalidStrategyParameters`, warn and continue.
+
+---
+
+## Safety characteristics
+
+* Retries with backoff for network‑sensitive calls.
+* Consistent slippage propagation from quote→swap.
+* Impact guard applied before swap submission.
+* Compute unit price applied to all txs.
+* Idempotent opens if a position already exists on a sleeve.
+* Strict SOL buffer accounting across all actions.
+
+---
+
+## Troubleshooting
+
+* **JSON import fails**: use Node 20+. Keep `PORTFOLIO_CONFIG` as a **relative** path like `./portfolio.config.json`.
+* **Not enough SOL**: increase `SOL_TOPUP_USD` or deposit SOL.
+* **No quote / high impact**: relax `PRICE_IMPACT` or `SLIPPAGE` thoughtfully.
+* **Per‑sleeve span**: currently global via `.env`. The `total_bins_span` and `lower_coef` fields in the portfolio file are placeholders.
+
+---
+
+## Quick‑start templates
+
+### Minimal single‑mode
+
+```env
+RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+WALLET_PATH=./id.json
+MODE=single
+POOL_ADDRESS=PASTE_DLMM_POOL
+TOTAL_BINS_SPAN=20
+LOWER_COEF=0.5
+LIQUIDITY_STRATEGY_TYPE=Spot
+SLIPPAGE=10
+PRICE_IMPACT=0.5
+PRIORITY_FEE_MICRO_LAMPORTS=50000
+SOL_FEE_BUFFER_LAMPORTS=70000000
+MONITOR_INTERVAL_SECONDS=60
+LOG_LEVEL=info
+```
+
+### Minimal portfolio‑mode
+
+```env
+RPC_URL=https://mainnet.helius-rpc.com/?api-key=YOUR_KEY
+WALLET_PATH=./id.json
+MODE=portfolio
+PORTFOLIO_CONFIG=./portfolio.config.json
+TOTAL_BINS_SPAN=20
+LOWER_COEF=0.5
+LIQUIDITY_STRATEGY_TYPE=Spot
+SLIPPAGE=10
+PRICE_IMPACT=0.5
+PRIORITY_FEE_MICRO_LAMPORTS=50000
+SOL_FEE_BUFFER_LAMPORTS=70000000
+MONITOR_INTERVAL_SECONDS=60
+EDGE_BUFFER_BINS=0
+LOG_LEVEL=info
+```
+
+`portfolio.config.json` example:
+
+```json
+{
+  "drift_bps": 150,
+  "min_rebalance_usd": 50,
+  "cooldown_seconds": 300,
+  "price_stale_secs": 60,
+  "sleeves": [
+    {
+      "id": "SOL-USDC",
+      "pool_address": "6wJ7W3oHj7ex6MVFp2o26NSof3aey7U8Brs8E371WCXA",
+      "target_weight": 0.5,
+      "edge_buffer_bins": 0,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": false,
+      "do_swap_on_center": false,
+      "min_liquidity_usd": 25
+    },
+    {
+      "id": "mSOL-SOL",
+      "pool_address": "REPLACE_ME",
+      "target_weight": 0.5,
+      "edge_buffer_bins": 0,
+      "liquidity_strategy_type": "Spot",
+      "do_swap_on_open": true,
+      "do_swap_on_center": true,
+      "min_liquidity_usd": 25
+    }
+  ]
+}
+```
+
+---
+
+## Commands recap
+
+```bash
+# Generate .env from .env.example and wallet if missing
+node configure.js
+
+# Single‑mode
+node cli.js run
+node cli.js run --interval 30
+
+# Portfolio‑mode
+# (ensure MODE=portfolio and PORTFOLIO_CONFIG set)
+node cli.js run
+node cli.js run --interval 30
+```
+
+---
